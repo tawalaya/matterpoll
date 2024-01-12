@@ -98,7 +98,44 @@ func TestPollToEndPollPost(t *testing.T) {
 		require.Nil(t, post)
 	})
 }
+func TestPollWithProgress(t *testing.T) {
+	PluginID := "com.github.matterpoll.matterpoll"
+	authorName := "John Doe"
 
+	for name, test := range map[string]struct {
+		Poll *poll.Poll
+	}{
+		"Test1": {
+			Poll: testutils.GetPollWithSettings(poll.Settings{Progress: true}),
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := test.Poll.UpdateVote(testutils.GetBotUserID(), 1)
+			require.Nil(t, err)
+
+			_, err = test.Poll.UpdateVote("bar", 1)
+			require.Nil(t, err)
+
+			_, err = test.Poll.UpdateVote("foo", 0)
+			require.Nil(t, err)
+
+			post := test.Poll.ToPostActions(testutils.GetLocalizer(), PluginID, authorName)
+			require.NotNil(t, post)
+
+			postText := post[0].Text
+			require.GreaterOrEqual(t, len(post), 1)
+			// check if the correct percentages are visible
+			require.Contains(t, postText, fmt.Sprintf("%3d %%", 33))
+			require.Contains(t, postText, fmt.Sprintf("%3d %%", 66))
+			require.Contains(t, postText, fmt.Sprintf("%3d %%", 0))
+
+			// check if the progressbars are correctly generated
+			require.Contains(t, postText, fmt.Sprintf("/plugins/%s/bar/%d.png", PluginID, 33))
+			require.Contains(t, postText, fmt.Sprintf("/plugins/%s/bar/%d.png", PluginID, 66))
+			require.Contains(t, postText, fmt.Sprintf("/plugins/%s/bar/%d.png", PluginID, 0))
+		})
+	}
+}
 func TestPollToPostActions(t *testing.T) {
 	PluginID := "com.github.matterpoll.matterpoll"
 	authorName := "John Doe"
@@ -166,12 +203,13 @@ func TestPollToPostActions(t *testing.T) {
 				},
 			}},
 		},
+		//XXX: Hardcoding this  might be suboptimal in the future, if the format change in any way.
 		"Multipile questions, settings: progress": {
 			Poll: testutils.GetPollWithSettings(poll.Settings{Progress: true, MaxVotes: 1}),
 			ExpectedAttachments: []*model.SlackAttachment{{
 				AuthorName: "John Doe",
 				Title:      "Question",
-				Text:       "---\n**Poll Settings**: progress\n**Total votes**: 0",
+				Text:       fmt.Sprintf("---\n![Bar  0](/plugins/%[1]s/bar/0.png)\tAnswer 1\t  0 %%\n![Bar  0](/plugins/%[1]s/bar/0.png)\tAnswer 2\t  0 %%\n![Bar  0](/plugins/%[1]s/bar/0.png)\tAnswer 3\t  0 %%\n**Poll Settings**: progress\n**Total votes**: 0", PluginID),
 				Actions: []*model.PostAction{{
 					Id:    "vote0",
 					Name:  "Answer 1 (0)",

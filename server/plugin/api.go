@@ -72,11 +72,12 @@ func (p *MatterpollPlugin) InitAPI() *mux.Router {
 	r := mux.NewRouter()
 	r.HandleFunc("/", p.handleInfo).Methods(http.MethodGet)
 	r.HandleFunc("/"+iconFilename, p.handleLogo).Methods(http.MethodGet)
+	// INFO we need to it here, because we would have to put an exception to checkAuthenticity otherwiese
+	r.HandleFunc("/bar/{size:[0-9]+}.png", p.handleBar).Methods(http.MethodGet)
 
 	apiV1 := r.PathPrefix("/api/v1").Subrouter()
 	apiV1.Use(checkAuthenticity)
 	apiV1.HandleFunc("/configuration", p.handlePluginConfiguration).Methods(http.MethodGet)
-
 	apiV1.HandleFunc("/polls/create", p.handleSubmitDialogRequest(p.handleCreatePoll)).Methods(http.MethodPost)
 	pollRouter := apiV1.PathPrefix("/polls/{id:[a-z0-9]+}").Subrouter()
 	pollRouter.HandleFunc("/vote/{optionNumber:[0-9]+}", p.handlePostActionIntegrationRequest(p.handleVote)).Methods(http.MethodPost)
@@ -88,6 +89,7 @@ func (p *MatterpollPlugin) InitAPI() *mux.Router {
 	pollRouter.HandleFunc("/delete", p.handlePostActionIntegrationRequest(p.handleDeletePoll)).Methods(http.MethodPost)
 	pollRouter.HandleFunc("/delete/confirm", p.handleSubmitDialogRequest(p.handleDeletePollConfirm)).Methods(http.MethodPost)
 	pollRouter.HandleFunc("/metadata", p.handlePollMetadata).Methods(http.MethodGet)
+
 	return r
 }
 
@@ -762,5 +764,25 @@ func (p *MatterpollPlugin) handlePollMetadata(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(metadata); err != nil {
 		p.API.LogWarn("failed to write response", "error", err.Error())
+	}
+}
+
+func (p *MatterpollPlugin) handleBar(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	size := vars["size"]
+	progress, err := strconv.ParseInt(size, 10, 32)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Cache-Control", "public, max-age=604800")
+
+	bar := Genbar(progress)
+
+	_, err = w.Write(bar)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 }

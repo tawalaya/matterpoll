@@ -114,14 +114,14 @@ func (p *Poll) ToPostActions(localizer *i18n.Localizer, pluginID, authorName str
 	return []*model.SlackAttachment{{
 		AuthorName: authorName,
 		Title:      p.Question,
-		Text:       p.makeAdditionalText(localizer, numberOfVotes),
+		Text:       p.makeAdditionalText(localizer, numberOfVotes, pluginID),
 		Actions:    actions,
 	}}
 }
 
 // makeAdditionalText make descriptions about poll
 // This method returns markdown text, because it is used for SlackAttachment.Text field.
-func (p *Poll) makeAdditionalText(localizer *i18n.Localizer, numberOfVotes int) string {
+func (p *Poll) makeAdditionalText(localizer *i18n.Localizer, numberOfVotes int, pluginID string) string {
 	var settingsText []string
 	if p.Settings.Anonymous {
 		settingsText = append(settingsText, "anonymous")
@@ -137,6 +137,11 @@ func (p *Poll) makeAdditionalText(localizer *i18n.Localizer, numberOfVotes int) 
 	}
 
 	lines := []string{"---"}
+
+	if p.Settings.Progress {
+		lines = append(lines, generateProgressBars(p.AnswerOptions, numberOfVotes, pluginID)...)
+	}
+
 	if len(settingsText) > 0 {
 		lines = append(lines, localizer.MustLocalize(&i18n.LocalizeConfig{
 			DefaultMessage: pollMessageSettings,
@@ -149,6 +154,23 @@ func (p *Poll) makeAdditionalText(localizer *i18n.Localizer, numberOfVotes int) 
 		TemplateData:   map[string]interface{}{"TotalVotes": numberOfVotes},
 	}))
 	return strings.Join(lines, "\n")
+}
+
+func generateProgressBars(answerOptions []*AnswerOption, numberOfVotes int, pluginID string) []string {
+	lines := make([]string, 0)
+
+	for _, n := range answerOptions {
+		v := len(n.Voter)
+		var progress float64
+		if numberOfVotes > 0 {
+			progress = float64(v) / float64(numberOfVotes)
+		} else {
+			progress = 0
+		}
+		percentage := int(progress * 100.0)
+		lines = append(lines, fmt.Sprintf("![Bar%3[1]d](/plugins/%[3]s/bar/%[1]d.png)\t%[2]s\t%3[1]d %%", percentage, n.Answer, pluginID))
+	}
+	return lines
 }
 
 // ToEndPollPost returns the poll end message
