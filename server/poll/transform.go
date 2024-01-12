@@ -153,11 +153,17 @@ func (p *Poll) ToPostActions(bundle *utils.Bundle, pluginID, authorName string) 
 		},
 	)
 
+	var fields []*model.SlackAttachmentField = nil
+	if p.Settings.Progress && p.Settings.ShowProgressBars {
+		fields = generateProgressBars(p.AnswerOptions, numberOfVotes, p.Settings.ProgressBarLength)
+	}
+
 	return []*model.SlackAttachment{{
 		AuthorName: authorName,
 		Title:      p.Question,
 		Text:       p.makeAdditionalText(bundle, numberOfVotes, len(voters)),
 		Actions:    actions,
+		Fields:     fields,
 	}}
 }
 
@@ -181,9 +187,6 @@ func (p *Poll) makeAdditionalText(bundle *utils.Bundle, numberOfVotes, numberOfV
 
 	lines := []string{"---"}
 
-	if p.Settings.Progress && p.Settings.ShowProgressBars {
-		lines = append(lines, generateProgressBars(p.AnswerOptions, numberOfVotes, p.Settings.ProgressBarLength)...)
-	}
 	if len(settingsText) > 0 {
 		lines = append(lines, bundle.LocalizeWithConfig(localizer, &i18n.LocalizeConfig{
 			DefaultMessage: pollMessageSettings,
@@ -222,8 +225,8 @@ func progressBarStr(progress float64, width float64) string {
 	return line
 }
 
-func generateProgressBars(answerOptions []*AnswerOption, numberOfVotes, MAX_BAR_CHAR_LENGTH int) []string {
-	lines := make([]string, 0)
+func generateProgressBars(answerOptions []*AnswerOption, numberOfVotes, MAX_BAR_CHAR_LENGTH int) []*model.SlackAttachmentField {
+	fields := make([]*model.SlackAttachmentField, 0)
 
 	for _, n := range answerOptions {
 		v := len(n.Voter)
@@ -233,10 +236,13 @@ func generateProgressBars(answerOptions []*AnswerOption, numberOfVotes, MAX_BAR_
 		} else {
 			progress = 0
 		}
-		lines = append(lines, fmt.Sprintf("%s:", n.Answer))
-		lines = append(lines, fmt.Sprintf("`%s`\t%3d %%", progressBarStr(progress, float64(MAX_BAR_CHAR_LENGTH)), int(progress*100.0)))
+		fields = append(fields, &model.SlackAttachmentField{
+			Title: n.Answer,
+			Value: fmt.Sprintf("`%s` %3d %%", progressBarStr(progress, float64(MAX_BAR_CHAR_LENGTH)), int(progress*100.0)),
+			Short: true,
+		})
 	}
-	return lines
+	return fields
 }
 
 // ToEndPollPost returns the poll end message

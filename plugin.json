@@ -48,7 +48,7 @@
                 "display_name": "Progress Bar Length",
                 "type": "number",
                 "help_text": "If you have ShowProgressBars enabled, you can set the maximum characters used to display the bar. This may affect how mobile users see the bar. For small screens set it to something below 32.",
-                "default":32
+                "default":15
             }
         ],
         "footer": "* To report an issue, make a suggestion, or submit a contribution, [check the repository](https://github.com/matterpoll/matterpoll)."

@@ -30,8 +30,8 @@ func (p *MatterpollPlugin) OnConfigurationChange() error {
 	}
 
 	if configuration.ShowProgressBars &&
-		(configuration.ProgressBarLength < 10 || configuration.ProgressBarLength > 100) {
-		return errors.New("Progress Bar Length should be between 10 and 100")
+		(configuration.ProgressBarLength < 5 || configuration.ProgressBarLength > 32) {
+		return errors.New("Progress Bar Length should be between 5 and 32")
 	}
 
 	// This require a loaded i18n bundle
